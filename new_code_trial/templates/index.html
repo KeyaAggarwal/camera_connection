@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab Camera System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+            background-color: #f8f9fa;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status-indicator {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+        }
+        .status-connected {
+            background-color: #28a745;
+        }
+        .status-disconnected {
+            background-color: #dc3545;
+        }
+        .btn-capture {
+            background-color: #007bff;
+            color: white;
+            padding: 15px 30px;
+            font-size: 1.2em;
+            border-radius: 8px;
+        }
+        .btn-capture:hover {
+            background-color: #0056b3;
+            color: white;
+        }
+        .user-card {
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .user-card.active {
+            border-color: #3498db;
+            background-color: #ebf5fb;
+        }
+        .card {
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .card-header {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #eee;
+        }
+        .btn-warning {
+            background-color: #ffc107;
+            color: #000;
+        }
+        .btn-warning:hover {
+            background-color: #e0a800;
+            color: #000;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center mb-4">Lab Camera System</h1>
+        
+        <!-- Camera Status -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Camera Status</h5>
+            </div>
+            <div class="card-body">
+                <p>Connection Status: 
+                    <span id="camera-status-indicator" class="status-indicator status-disconnected"></span>
+                    <span id="camera-status-text">Checking...</span>
+                </p>
+                <button class="btn btn-secondary" onclick="checkCamera()">Check Connection</button>
+            </div>
+        </div>
+
+        <!-- Active User -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Active User</h5>
+            </div>
+            <div class="card-body">
+                <div class="user-card active">
+                    <div class="user-info">
+                        <h4>{{ active_user_data.name }}</h4>
+                        <p>Username: {{ active_user }}</p>
+                        <p>Photos stored in: {{ active_user_data.local_folder }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Camera Controls -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Camera Controls</h5>
+            </div>
+            <div class="card-body text-center">
+                <button class="btn btn-capture mb-3" onclick="takePhoto()">Take Photo</button>
+                <div>
+                    <button class="btn btn-warning" onclick="toggleTimelapse()">
+                        {{ 'Stop Timelapse' if timelapse_active else 'Start Timelapse' }}
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- User Selection -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Select User</h5>
+            </div>
+            <div class="card-body">
+                {% for user in users %}
+                    {% if user.username != active_user %}
+                    <div class="user-card">
+                        <div class="user-info">
+                            <h4>{{ user.display_name }}</h4>
+                            <p>Username: {{ user.username }}</p>
+                        </div>
+                        <form method="post" action="/set_user" class="mt-3">
+                            <input type="hidden" name="username" value="{{ user.username }}">
+                            <button type="submit" class="btn btn-primary">Select User</button>
+                        </form>
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Add New User -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Add New User</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" action="/add_user">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Username (letters, numbers, underscores only):</label>
+                        <input type="text" class="form-control" id="username" name="username" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="display_name" class="form-label">Full Name:</label>
+                        <input type="text" class="form-control" id="display_name" name="display_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="dropbox_folder" class="form-label">Dropbox Folder (optional):</label>
+                        <input type="text" class="form-control" id="dropbox_folder" name="dropbox_folder" placeholder="/Camera_Pedal_Photos/your_username">
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="set_active" name="set_active">
+                            <label class="form-check-label" for="set_active">Set as active user</label>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Add User</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Check camera status periodically
+        function checkCamera() {
+            fetch('/check_camera')
+                .then(response => response.json())
+                .then(data => {
+                    const indicator = document.getElementById('camera-status-indicator');
+                    const statusText = document.getElementById('camera-status-text');
+                    
+                    if (data.connected) {
+                        indicator.className = 'status-indicator status-connected';
+                        statusText.textContent = 'Connected';
+                    } else {
+                        indicator.className = 'status-indicator status-disconnected';
+                        statusText.textContent = 'Disconnected';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking camera:', error);
+                });
+        }
+
+        // Take photo
+        function takePhoto() {
+            fetch('/take_photo', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+            })
+            .catch(error => {
+                console.error('Error taking photo:', error);
+                alert('Error taking photo');
+            });
+        }
+
+        // Toggle timelapse mode
+        function toggleTimelapse() {
+            fetch('/toggle_timelapse', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload(); // Reload page to update timelapse button text
+                } else {
+                    alert(data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error toggling timelapse:', error);
+                alert('Error toggling timelapse mode');
+            });
+        }
+
+        // Check camera status on page load
+        document.addEventListener('DOMContentLoaded', checkCamera);
+        
+        // Check camera status every 30 seconds
+        setInterval(checkCamera, 30000);
+    </script>
+</body>
+</html> 
